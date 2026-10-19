@@ -1,0 +1,24 @@
+[
+  {
+    "file": "htmx.min.js",
+    "source": "https://unpkg.com/htmx.org@2.0.8/dist/htmx.min.js",
+    "sha256": "22283ef68cb7545914f0a88a1bdedc7256a703d1d580c1d255217d0a50d31313"
+  },
+  {
+    "file": "lucide.min.js",
+    "source": "https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js",
+    "sha256": "d0e2c96358addcc6c537c80de85f984dfd64d2f7de5d3c9b5457ba5d860279e8",
+    "upstream_sha256": "3411692820cb8d47543f69496aa25fd603a358f4498046f41c508a5a3342210e",
+    "local_modification": "Removed source map reference; production manifest storage requires all referenced assets."
+  },
+  {
+    "file": "HTMX-LICENSE.txt",
+    "source": "https://unpkg.com/htmx.org@2.0.8/LICENSE",
+    "sha256": "d3d2456f76414f2456104660ebd65aff1c04cd7966b942bdabd63f3cdb316a38"
+  },
+  {
+    "file": "LUCIDE-LICENSE.txt",
+    "source": "https://unpkg.com/lucide@0.468.0/LICENSE",
+    "sha256": "1e7290b35280a048667bbf0ebabac1c7fd52a75300e8b2946ac165715997f2bc"
+  }
+]

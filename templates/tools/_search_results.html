@@ -1,0 +1,2 @@
+{% include 'tools/_tool_cards.html' %}
+<div id="directory-count" class="results-count" hx-swap-oob="true">{{ tools|length }} tool{{ tools|length|pluralize }}{% if query %} for “{{ query }}”{% endif %}<span><i data-lucide="check"></i> Free to use. No signup.</span></div>

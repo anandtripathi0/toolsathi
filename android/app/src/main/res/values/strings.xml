@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">ToolSathi</string>
+    <string name="tagline">Every Tool. One Place.</string>
+    <string name="offline_title">Let’s get you reconnected</string>
+    <string name="offline_body">ToolSathi could not open this page. Check your connection and try again.</string>
+    <string name="retry">Try again</string>
+    <string name="file_chooser">Choose images or documents</string>
+    <string name="download_started">Download started. Check Downloads.</string>
+    <string name="download_saved">Saved to Downloads/ToolSathi</string>
+    <string name="download_failed">This file could not be saved. Please try again.</string>
+    <string name="unsupported_link">This link cannot be opened safely.</string>
+    <string name="unsupported_webview">Update Android System WebView to save files generated on your device.</string>
+</resources>
