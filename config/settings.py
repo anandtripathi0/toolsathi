@@ -1,5 +1,6 @@
 """Environment-driven settings. Production fails closed without explicit secrets/hosts."""
 import os
+import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse
 import dj_database_url
@@ -13,9 +14,32 @@ if not SECRET_KEY:
         raise ImproperlyConfigured('Set DJANGO_SECRET_KEY in production.')
     SECRET_KEY = 'local-development-only-toolsathi-not-for-deployment-4729'
 ALLOWED_HOSTS = [s.strip() for s in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]').split(',') if s.strip()]
-SITE_URL = os.getenv('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
-if not DEBUG and (urlparse(SITE_URL).scheme != 'https' or 'DJANGO_ALLOWED_HOSTS' not in os.environ):
-    raise ImproperlyConfigured('Production needs an HTTPS SITE_URL and DJANGO_ALLOWED_HOSTS.')
+SITE_URL = os.getenv('SITE_URL', 'http://127.0.0.1:8000').strip().rstrip('/')
+if not DEBUG:
+    try:
+        origin = urlparse(SITE_URL)
+        host = origin.hostname or ''
+        normalized_host = host.rstrip('.')
+        invalid_origin = (
+            origin.scheme != 'https' or not host or origin.username is not None or origin.password is not None
+            or bool(origin.path or origin.params or origin.query or origin.fragment)
+            or origin.port not in (None, 443) or any(character.isspace() for character in SITE_URL)
+            or '?' in SITE_URL or '#' in SITE_URL
+            or normalized_host == 'localhost' or normalized_host.endswith('.localhost')
+            or 'DJANGO_ALLOWED_HOSTS' not in os.environ or host not in ALLOWED_HOSTS
+            or '*' in ALLOWED_HOSTS
+        )
+        try:
+            invalid_origin = invalid_origin or ipaddress.ip_address(normalized_host).is_loopback
+        except ValueError:
+            pass
+        if invalid_origin:
+            raise ValueError
+    except ValueError:
+        raise ImproperlyConfigured('Production needs an HTTPS SITE_URL origin with an explicit matching DJANGO_ALLOWED_HOSTS hostname.') from None
+GOOGLE_SITE_VERIFICATION = os.getenv('GOOGLE_SITE_VERIFICATION', '').strip()
+# PythonAnywhere overwrites X-Real-IP; enable only on that managed proxy.
+TRUST_PYTHONANYWHERE_PROXY = os.getenv('TRUST_PYTHONANYWHERE_PROXY', 'false').lower() == 'true'
 INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
                   'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
                   'apps.core', 'apps.tools', 'apps.accounts', 'apps.downloads', 'apps.seo']

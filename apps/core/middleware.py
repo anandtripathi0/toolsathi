@@ -1,10 +1,29 @@
 import hashlib
 import hmac
+import ipaddress
 import time
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
 from apps.accounts.models import RateBucket
+
+
+def _client_ip(request):
+    """Trust a validated X-Real-IP only on the explicitly configured PA proxy.
+
+    https://help.pythonanywhere.com/pages/WebAppClientIPAddresses
+    Other deployments keep REMOTE_ADDR; arbitrary X-Forwarded-For is ignored.
+    """
+    if settings.TRUST_PYTHONANYWHERE_PROXY:
+        forwarded = request.META.get('HTTP_X_REAL_IP', '').strip()
+        try:
+            if '%' in forwarded:
+                raise ValueError
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return request.META.get('REMOTE_ADDR', '')
+
 
 class RequestGuardMiddleware:
     def __init__(self, get_response):
@@ -23,8 +42,7 @@ class RequestGuardMiddleware:
             if is_tool or is_auth:
                 now = int(time.time())
                 window, limit = (60, 30) if is_tool else (300, 10)
-                # Do not trust arbitrary X-Forwarded-For headers. A trusted edge should also rate-limit clients.
-                identity = f"{request.META.get('REMOTE_ADDR', '')}:{now // window}:{'tool' if is_tool else 'auth'}"
+                identity = f"{_client_ip(request)}:{now // window}:{'tool' if is_tool else 'auth'}"
                 key = hmac.new(settings.SECRET_KEY.encode(), identity.encode(), hashlib.sha256).hexdigest()
                 RateBucket.objects.filter(expires__lt=now).delete()
                 bucket, _ = RateBucket.objects.get_or_create(key=key, defaults={'expires': (now // window + 1) * window})

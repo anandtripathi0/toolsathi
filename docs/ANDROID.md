@@ -4,13 +4,13 @@
 
 The `android/` directory is a genuine Kotlin / Android Gradle project with the official Gradle wrapper JAR and scripts. **There is no generated APK in this delivery.** The build prerequisite check (`android/gradlew.bat --version`) failed because Java is not installed or on `PATH`; no Android SDK, emulator or connected device was found in the checked locations. The website must retain its **Android app coming soon** state until a verified signed artifact is published.
 
-A deployed ToolSathi HTTPS origin is required. No invented production hostname is embedded in the app. You must supply `-PTOOLSATHI_URL=https://<your-real-domain>/`; the angle-bracket text is a placeholder to replace. The property accepts an HTTPS origin at port 443 with no username, password, query, fragment or subpath, and rejects localhost and reserved example/test hostnames. The build validates the URL format; the operator must verify deployment and domain ownership.
+The app is configured in `android/gradle.properties` for **https://anandtrip22.pythonanywhere.com/**. This is the user's real target domain; setting it does not establish that ToolSathi is deployed. At deployment preparation, the public domain served PythonAnywhere's default page. Confirm the live ToolSathi homepage and anonymous tool processing before distributing an APK. The property accepts an HTTPS origin at port 443 with no username, password, query, fragment or subpath, and rejects localhost and reserved example/test hostnames.
 
 The source includes launcher and splash assets, Android back navigation, native offline/retry UI, single and multiple document/image picking, native downloads and the browser-file bridge. Runtime behavior has **not** been verified on an Android device in this environment.
 
 ## Build prerequisites
 
-Install Android Studio or the Android command-line SDK on your build machine. Use JDK 17, Android SDK platform 36, SDK build tools 35.0.0 and platform-tools. Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to your SDK, or use an ignored `android/local.properties` file containing `sdk.dir=...`. Accept the SDK licenses using your SDK manager. Internet access is required for the initial Gradle/plugin/library downloads.
+Install Android Studio or the Android command-line SDK on your build machine. Use JDK 17, Android SDK platform 36, SDK build tools 35.0.0 and platform-tools. Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to your SDK. Accept the SDK licenses using your SDK manager. The helper also requires Python 3.12+. Internet access is required for initial Gradle/plugin/library downloads. Build on a development machine or a suitable CI runner; do not install the Android SDK or compile the app on the free PythonAnywhere host.
 
 Pinned build components are Gradle 8.13, Android Gradle Plugin 8.13.2 and Kotlin 2.3.10. The project compiles/targets API 36 and supports API 29+. Android's [AGP compatibility documentation](https://developer.android.com/build/releases/agp-8-13-0-release-notes) and Kotlin's [compatibility table](https://kotlinlang.org/docs/gradle-configure-project.html) describe these requirements. The wrapper JAR and distribution hashes can be checked against [Gradle's checksum list](https://gradle.org/release-checksums/).
 
@@ -24,31 +24,34 @@ The wrapper also verifies the Gradle 8.13 binary distribution SHA-256 on downloa
 
 ## Debug checks and APK
 
-In PowerShell, set the real deployed origin in the current terminal, then run from `android/`:
+In PowerShell, run from `android/` (the real target origin is already configured):
 
 ```powershell
-$env:TOOLSATHI_SITE = 'https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/'
 .\gradlew.bat --version
-.\gradlew.bat "-PTOOLSATHI_URL=$env:TOOLSATHI_SITE" testDebugUnitTest lintDebug assembleDebug
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug
 ```
 
 On macOS/Linux:
 
 ```sh
 cd android
-export TOOLSATHI_SITE='https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/'
 chmod +x gradlew
-./gradlew "-PTOOLSATHI_URL=$TOOLSATHI_SITE" testDebugUnitTest lintDebug assembleDebug
+./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-After a successful build, the debug artifact is `android/app/build/outputs/apk/debug/app-debug.apk` with package `com.toolsathi.app.debug`. Install it for testing with `adb install -r <path-to-app-debug.apk>`. **Do not publish a debug APK as the public release.** JVM tests exercise HTTPS origin, credential, scheme and filename validation. Lint and JVM tests were supplied but could not run here without Java/SDK.
+After a successful build, the debug artifact is `android/app/build/outputs/apk/debug/app-debug.apk` with package `com.toolsathi.app.debug`. From the repository root, install it for testing with `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`. **Do not publish a debug APK as the public release.** JVM tests exercise HTTPS origin, credential, scheme and filename validation. Lint and JVM tests were supplied but could not run here without Java/SDK.
 
 ## Sign a release
 
-Create a release keystore once on your secure build machine, outside this repository. Preserve it and its passwords in a secure backup: future app updates must retain the same signing identity. `keytool` prompts for passwords so they do not need to appear in shell history:
+Create a release keystore once on your secure build machine, outside this repository. Preserve it and its passwords in a secure backup: future app updates must retain the same signing identity. Losing a self-managed signing key prevents compatible updates. [Android signing guidance](https://developer.android.com/studio/publish/app-signing). On this Windows account, the following location is outside the repository; `keytool` prompts for passwords so they do not appear in shell history. Reuse an existing key instead of recreating it:
 
-```sh
-keytool -genkeypair -v -keystore /secure/path/toolsathi-release.jks -alias toolsathi -keyalg RSA -keysize 3072 -validity 10000
+```powershell
+$toolsathiSigningDir = 'C:\Users\tripa\AppData\Local\ToolSathiSigning'
+New-Item -ItemType Directory -Path $toolsathiSigningDir -Force | Out-Null
+$env:TOOLSATHI_KEYSTORE = Join-Path $toolsathiSigningDir 'toolsathi-release.jks'
+if (-not (Test-Path -LiteralPath $env:TOOLSATHI_KEYSTORE)) {
+    keytool -genkeypair -v -storetype JKS -keystore $env:TOOLSATHI_KEYSTORE -alias toolsathi -keyalg RSA -keysize 3072 -validity 10000
+}
 ```
 
 Set these environment variables through your CI secret store or a secure local session:
@@ -60,37 +63,54 @@ Set these environment variables through your CI secret store or a secure local s
 | `TOOLSATHI_KEY_ALIAS` | Signing key alias |
 | `TOOLSATHI_KEY_PASSWORD` | Private-key password |
 
-Never commit signing keys, passwords, `local.properties`, secret environment files or CI logs containing secrets. The Android `.gitignore` excludes common signing files. Release packaging refuses to proceed unless all signing variables are present. It never silently substitutes a debug key.
-
-Increment `versionCode` and `versionName` in `android/app/build.gradle.kts` for updates. Then run:
+Never commit signing keys, passwords, `local.properties`, secret environment files or CI logs containing secrets. The Android `.gitignore` excludes common signing files. Release packaging refuses to proceed unless all signing variables are present. It never silently substitutes a debug key. For a local PowerShell session, enter passwords privately:
 
 ```powershell
-cd android
-.\gradlew.bat "-PTOOLSATHI_URL=$env:TOOLSATHI_SITE" testDebugUnitTest lintRelease assembleRelease
+$env:TOOLSATHI_KEY_ALIAS = 'toolsathi'
+$toolsathiStorePassword = Read-Host 'Keystore password' -AsSecureString
+$toolsathiKeyPassword = Read-Host 'Key password' -AsSecureString
+$env:TOOLSATHI_STORE_PASSWORD = [System.Net.NetworkCredential]::new('', $toolsathiStorePassword).Password
+$env:TOOLSATHI_KEY_PASSWORD = [System.Net.NetworkCredential]::new('', $toolsathiKeyPassword).Password
 ```
+
+Run commands in your private terminal without printing the environment. Close that terminal after building, or remove the four signing environment variables. Keep the key and passwords backed up securely; they are not uploaded to PythonAnywhere.
+
+Increment `versionCode` and `versionName` in `android/app/build.gradle.kts` for updates. Then run from the repository root:
+
+```powershell
+python android/build_release.py --check
+python android/build_release.py
+```
+
+The helper checks JDK 17, SDK platform/build tools and private signing inputs, then runs `testDebugUnitTest lintRelease assembleRelease`. It verifies the APK signature, rejects a debug certificate/debuggable package, checks the release package name and prints SHA-256. It does not generate a key, upload files or perform device tests. The same helper works on Linux/macOS with their SDK paths and signing variables. `--check` only checks prerequisites; a pass is not proof of compilation. If prerequisite checks fail, install/configure the reported requirements before building.
 
 Expected output **after successful completion**: `android/app/build/outputs/apk/release/app-release.apk`, package `com.toolsathi.app`. This path is a build destination, not an artifact currently present.
 
 Verify with the Android SDK tools before distribution:
 
 ```powershell
-& "$env:ANDROID_HOME\build-tools\35.0.0\apksigner.bat" verify --verbose --print-certs .\app\build\outputs\apk\release\app-release.apk
-& "$env:ANDROID_HOME\build-tools\35.0.0\aapt.exe" dump badging .\app\build\outputs\apk\release\app-release.apk
-Get-FileHash .\app\build\outputs\apk\release\app-release.apk -Algorithm SHA256
-adb install -r .\app\build\outputs\apk\release\app-release.apk
+& "$env:ANDROID_HOME\build-tools\35.0.0\apksigner.bat" verify --verbose --print-certs .\android\app\build\outputs\apk\release\app-release.apk
+& "$env:ANDROID_HOME\build-tools\35.0.0\aapt.exe" dump badging .\android\app\build\outputs\apk\release\app-release.apk
+Get-FileHash .\android\app\build\outputs\apk\release\app-release.apk -Algorithm SHA256
+adb install -r .\android\app\build\outputs\apk\release\app-release.apk
 ```
 
 Confirm the certificate is your release certificate, the package/version are correct, and the APK opens your actual HTTPS website. A valid signature alone does not establish app quality or successful runtime testing.
 
 ## Publish through Django
 
-From the repository root, after verifying and testing the signed release, run:
+From the repository root on the SDK-equipped build machine, after verifying and testing the signed release, create a staging pair using the existing publisher:
 
 ```powershell
+$env:APK_DIR = Join-Path (Get-Location) '.runtime\apk-release'
 python manage.py publish_apk .\android\app\build\outputs\apk\release\app-release.apk --version 1.0.0 --apksigner "$env:ANDROID_HOME\build-tools\35.0.0\apksigner.bat"
 ```
 
-The publisher verifies the signature using `apksigner`, rejects a debug signer, checks APK archive contents, reads the actual package/version with the SDK's sibling `aapt` executable, rejects debuggable builds and version mismatches, computes SHA-256 and installs `toolsathi-latest.apk` plus release metadata in `APK_DIR` (default `artifacts/`). Publish the exact file you tested. Set `APK_DIR` to a durable storage path on your server if the deployment filesystem is ephemeral. Run the publisher on a controlled machine with the Android SDK; deploy both generated artifact and metadata together.
+The publisher verifies the signature using `apksigner`, rejects a debug signer, checks APK archive contents, reads the actual package/version with the SDK's sibling `aapt` executable, rejects debuggable builds and version mismatches, computes SHA-256 and installs `toolsathi-latest.apk` plus `release.json` in the staging directory. Use the exact version of the APK you tested (initial version is `1.0.0`).
+
+In [PythonAnywhere Files](https://www.pythonanywhere.com/user/anandtrip22/files/), open `/home/anandtrip22/.local/share/toolsathi/apk` and upload the verified `toolsathi-latest.apk` and `release.json` from `.runtime/apk-release/`. Upload both before checking the download page; a mismatched pair is treated as unavailable. This directory is the deployed `APK_DIR`, outside the Git checkout and separate from temporary tool results. No keystore, password, SDK, debug APK or unverified artifact is uploaded. If replacing a release, retain the previous verified pair in a private backup so the prior version can be restored. Check account disk space before retaining multiple APK copies.
+
+Run `sha256sum /home/anandtrip22/.local/share/toolsathi/apk/toolsathi-latest.apk` in the server Bash console and compare its digest with the local build/publisher output. Open [the app page](https://anandtrip22.pythonanywhere.com/download-app/) anonymously; confirm the displayed version, size and SHA-256. Download [the APK](https://anandtrip22.pythonanywhere.com/downloads/toolsathi-latest.apk) on Android and repeat installation/launch checks. Before a verified pair is present, the site displays coming soon. Report public installation as tested only after those checks succeed; restore the prior verified pair if a replacement fails acceptance.
 
 The anonymous URL `/downloads/toolsathi-latest.apk` uses `application/vnd.android.package-archive` and attachment filename `ToolSathi.apk`. `/download-app/` displays version, size, checksum and installation instructions only when the artifact and verified metadata pass validation. Verify this on your real HTTPS deployment using an Android browser, not only a desktop request. The app does not request permission to install packages; installation is the device/browser's normal explicit flow.
 

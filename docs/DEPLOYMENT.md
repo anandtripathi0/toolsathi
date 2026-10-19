@@ -1,5 +1,7 @@
 # Deployment
 
+For the existing **anandtrip22** free account and `https://anandtrip22.pythonanywhere.com/`, follow [PYTHONANYWHERE_FREE_DEPLOY.md](PYTHONANYWHERE_FREE_DEPLOY.md). It includes the account-specific scripts, private environment loading, platform WSGI template, static mapping, storage limits and safe update procedure. [GOOGLE_SEO_SETUP.md](GOOGLE_SEO_SETUP.md) covers ownership verification after deployment. The notes below are for other installations.
+
 ## Local operation — no paid services
 
 The README's virtualenv, pip, migrate and runserver commands run the full app with SQLite. Python, Django, the tool libraries and Android source are free. A public service additionally needs a running host, network access and HTTPS. No account, host or domain was created during this build.
@@ -13,12 +15,12 @@ DJANGO_DEBUG=false
 DJANGO_SECRET_KEY=<a newly generated random secret of at least 50 characters>
 DJANGO_ALLOWED_HOSTS=<your exact hostname>
 SITE_URL=https://<your exact hostname>
-TRUST_PROXY_HTTPS=true
+TRUST_PROXY_HTTPS=false
 RESULT_DIR=<private ephemeral directory outside the web root>
 APK_DIR=<directory containing verified artifacts>
 ```
 
-Generate the secret locally with `python -c "import secrets; print(secrets.token_urlsafe(64))"`. Keep it out of source control. `.env.example` is documentation; configure actual environment variables. If the app directly terminates TLS, leave `TRUST_PROXY_HTTPS=false`. Behind a proxy, enable it only if that proxy overwrites `X-Forwarded-Proto`; trusting a user-supplied value is unsafe.
+Generate the secret directly into private configuration using Python's `secrets.token_urlsafe(64)` without printing it; the PythonAnywhere initializer does this automatically. Keep it out of source control. `.env.example` is documentation; configure actual environment variables or explicitly select an absolute private file outside the checkout using `TOOLSATHI_ENV_FILE`. POSIX files must belong to the current user with mode `0600`. Leave `TRUST_PROXY_HTTPS=false` unless the hosting proxy is verified to replace `X-Forwarded-Proto`; trusting a user-supplied value is unsafe.
 
 Run migrations and collectstatic, then run deployment checks:
 
@@ -31,7 +33,7 @@ python -m waitress --listen=127.0.0.1:8000 --threads=2 config.wsgi:application
 
 Terminate TLS with a trusted reverse proxy or hosting platform. Restrict direct access to the application port. Set the proxy's upload body limit to 22 MiB and a practical request timeout. WhiteNoise serves compressed, versioned static assets. HTTPS cookies and one-year HSTS apply in production; set these only on an HTTPS-ready hostname you control.
 
-Schedule cleanup every minute, using your virtualenv and project working directory. Example for a Linux host with cron:
+On a host that actually provides a scheduler, schedule cleanup using your virtualenv and project working directory. New PythonAnywhere free accounts do not include scheduled tasks; use the request-triggered cleanup and manual maintenance described in the account guide. Example for a Linux host with cron:
 
 ```cron
 * * * * * cd /srv/toolsathi && /srv/toolsathi/.venv/bin/python manage.py cleanup_results >> /dev/null 2>&1
@@ -47,7 +49,7 @@ The supplied synchronous worker has bounded inputs/outputs but is not a hardened
 
 **PythonAnywhere:** its current free account includes one web app/worker with an expiry/renewal policy. Check its [free account features](https://help.pythonanywhere.com/pages/FreeAccountsFeatures/) and [available Python versions](https://help.pythonanywhere.com/pages/PythonVersions/) before choosing it. Account system images differ; select Python 3.12 or later. Resource, storage and outbound-network limits apply. The application itself does not need outbound API calls during normal operation.
 
-1. Create your own free account and upload the project source, excluding `.venv`, `.runtime`, local databases and secrets.
+1. Use the existing `anandtrip22` account and the account-specific guide above. Do not create another account. Keep local environments, runtime files, databases and secrets out of source uploads.
 2. In its console create a virtualenv, install `requirements.txt`, and set the production environment values.
 3. Create a manually configured Python web app using that virtualenv. In the platform's WSGI configuration add the project path to `sys.path`, set the production variables, then import `application` from `config.wsgi`.
 4. Run migrations, collectstatic and `check --deploy` with the same environment. Enable HTTPS for the assigned hostname; set `SITE_URL` and `DJANGO_ALLOWED_HOSTS` to it. The platform may serve `/static/` directly from `staticfiles/`, or use WhiteNoise.

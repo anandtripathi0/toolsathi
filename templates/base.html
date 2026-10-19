@@ -4,6 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ page_title|default:"ToolSathi — Every Tool. One Place." }}</title>
   <meta name="description" content="{{ meta_description|default:'Free online developer tools, image editors, PDF utilities, converters, and everyday essentials. No signup required.' }}">
+  {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
   <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false}'><meta name="theme-color" content="#ffffff">
   <meta property="og:title" content="{{ page_title|default:'ToolSathi — Every Tool. One Place.' }}"><meta property="og:description" content="{{ meta_description|default:'Your everyday toolkit. Free, simple, and ready when you are.' }}"><meta property="og:type" content="website">
   {% if canonical %}<link rel="canonical" href="{{ canonical }}"><meta property="og:url" content="{{ canonical }}">{% endif %}
